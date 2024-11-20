@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- 设置页面字符编码为utf-8，确保能正确显示各种字符 -->
+    <meta charset="utf-8" />
+    <!-- 页面标题，在浏览器标签页显示的名称 -->
+    <title>Breakout</title>
+    <style>
+        /* 通配选择器，将所有元素的内边距和外边距初始化为0，方便进行页面布局的精确控制 */
+        * {
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+    <!-- 引入Phaser游戏框架的核心脚本文件，这是实现游戏功能的基础 -->
+    <script src="js/phaser.min.js"></script>
+</head>
+
+<body>
+    <script>
+        // 创建游戏实例
+        // 参数依次为：游戏宽度（480像素）、游戏高度（320像素）、渲染模式（自动选择合适的渲染方式）、
+        // 渲染的DOM元素（这里为null表示自动创建）、包含预加载、创建、更新等游戏阶段函数的对象
+        var game = new Phaser.Game(480, 320, Phaser.AUTO, null, { preload: preload, create: create, update: update });
+
+        // 定义游戏中的各种元素变量，以下这些变量将用于存储游戏中的球、球拍、砖块等对象以及相关的文本、状态等信息
+        var ball;
+        var paddle;
+        var bricks;
+        var newBrick;
+        var brickInfo;
+        var scoreText;
+        var score = 0;
+        var lives = 3;
+        var livesText;
+        var lifeLostText;
+        var playing = false;
+        var startButton;
+        var instruction;
+
+        // 预加载游戏资源的函数，在游戏开始前会执行此函数加载所需的图片、精灵表等资源
+        function preload() {
+            // 设置游戏缩放模式为 SHOW_ALL，保证游戏在不同尺寸屏幕下能按比例缩放显示完整
+            game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+            // 水平方向页面内容对齐
+            game.scale.pageAlignHorizontally = true;
+            // 垂直方向页面内容对齐
+            game.scale.pageAlignVertically = true;
+            // 设置游戏舞台的背景颜色为浅灰色（十六进制颜色值 '#eee'）
+            game.stage.backgroundColor = '#eee';
+            // 加载球拍的图片资源，路径为 'img/paddle.png'，后续可通过 'paddle' 这个键来引用该图片
+            game.load.image('paddle', 'img/paddle.png');
+            // 加载砖块的图片资源，路径为 'img/brick.png'，同样后续用 'brick' 来引用
+            game.load.image('brick', 'img/brick.png');
+            // 加载小球的精灵表资源，路径为 'img/wobble.png'，每个帧的宽度为20像素，高度为20像素，可用于实现小球的动画效果
+            game.load.spritesheet('ball', 'img/wobble.png', 20, 20);
+            // 加载开始按钮的精灵表资源，路径为 'img/button.png'，每个帧的宽度为120像素，高度为40像素
+            game.load.spritesheet('button', 'img/button.png', 120, 40);
+        }
+
+        // 创建游戏场景中各种对象的函数，在游戏资源预加载完成后执行，用于初始化游戏界面和各种游戏元素
+        function create() {
+            // 启动Phaser的物理系统，这里使用的是ARCADE物理引擎，它提供了简单的碰撞检测等物理模拟功能
+            game.physics.startSystem(Phaser.Physics.ARCADE);
+            // 禁止小球在向下方向的碰撞检测，可根据游戏需求调整小球与边界等的碰撞行为
+            game.physics.arcade.checkCollision.down = false;
+            // 在游戏世界的中心位置（水平方向）、距离底部25像素的位置（垂直方向）添加小球对象，使用之前加载的 'ball' 图片资源
+            ball = game.add.sprite(game.world.width * 0.5, game.world.height - 25, 'ball');
+            // 为小球添加名为 'wobble' 的动画，通过给定的帧序列数组来定义动画的帧顺序，播放速度为每秒24帧
+            ball.animations.add('wobble', [0, 1, 0, 2, 0, 1, 0, 2, 0,], 24);
+            // 设置小球的锚点为中心（0.5表示水平和垂直方向都在中心位置），方便进行旋转、缩放等变换时以中心为基准
+            ball.anchor.set(0.5);
+            // 启用小球的物理模拟，使其能参与碰撞检测等物理行为，使用的是之前启动的ARCADE物理引擎
+            game.physics.enable(ball, Phaser.Physics.ARCADE);
+            // 允许小球与游戏世界边界发生碰撞，这样小球碰到边界会反弹
+            ball.body.collideWorldBounds = true;
+            // 设置小球的反弹系数为1，表示完全弹性碰撞，碰到物体后以相同速度反弹
+            ball.body.bounce.set(1);
+            // 开启小球超出边界检查功能，以便后续处理小球离开屏幕的情况
+            ball.checkWorldBounds = true;
+            // 为小球添加超出边界的事件监听器，当小球超出屏幕边界时，会调用 ballLeaveScreen 函数进行相应处理
+            ball.events.onOutOfBounds.add(ballLeaveScreen, this);
+
+            // 在游戏世界的中心位置（水平方向）、距离底部5像素的位置（垂直方向）添加球拍对象，使用之前加载的 'paddle' 图片资源
+            paddle = game.add.sprite(game.world.width * 0.5, game.world.height - 5, 'paddle');
+            // 设置球拍的锚点，水平方向在中心（0.5），垂直方向在底部（1），方便进行位置调整等操作
+            paddle.anchor.set(0.5, 1);
+            // 启用球拍的物理模拟，使其能参与碰撞检测等物理行为，同样使用ARCADE物理引擎
+            game.physics.enable(paddle, Phaser.Physics.ARCADE);
+            // 将球拍设置为不可移动的物体，在与小球等碰撞时不会被推动
+            paddle.body.immovable = true;
+
+            // 初始化砖块的函数，用于创建游戏中的砖块布局
+            initBricks();
+
+            // 定义文本样式对象，设置字体为18像素的Arial字体，颜色为蓝色（十六进制颜色值 '#0095DD'）
+            textStyle = { font: '18px Arial', fill: '#0095DD' };
+            // 在游戏世界的左上角（坐标为5,5）添加显示得分的文本对象，初始文本内容为 'Points: 0'，使用前面定义的文本样式
+            scoreText = game.add.text(5, 5, 'Points: 0', textStyle);
+            // 在游戏世界的右上角（通过设置锚点为 (1,0) 实现）添加显示剩余生命数的文本对象，初始文本内容根据 lives 变量设置，使用定义的文本样式
+            livesText = game.add.text(game.world.width - 5, 5, 'Lives: ' + lives, textStyle);
+            livesText.anchor.set(1, 0);
+            // 在游戏世界的中心偏下位置（水平和垂直方向分别为宽度和高度的0.6倍处）添加显示失去生命提示的文本对象，初始设置为不可见，使用定义的文本样式
+            lifeLostText = game.add.text(game.world.width * 0.5, game.world.height * 0.6, 'Life lost, tap to continue', textStyle);
+            lifeLostText.anchor.set(0.5);
+            lifeLostText.visible = false;
+
+            // 在游戏世界的四分之一宽度、七分之四高度位置添加操作提示文本对象，告诉玩家通过移动鼠标或滑动屏幕来控制球拍，使用定义的文本样式
+            instruction = game.add.text(game.world.width * 0.25, game.world.height * 0.7, '"Move mouse" or "Slide screen" \n          to control the paddle', textStyle);
+            // 在游戏世界的中心位置添加开始按钮对象，使用之前加载的 'button' 精灵表资源，点击按钮会调用 startGame 函数，后面的参数指定按钮不同状态对应的精灵表帧索引
+            startButton = game.add.button(game.world.width * 0.5, game.world.height * 0.6, 'button', startGame, this, 1, 0, 2);
+            startButton.anchor.set(0.5);
+        }
+
+        // 游戏每帧更新时执行的函数，用于处理游戏中的逻辑更新，比如碰撞检测、物体移动等
+        function update() {
+            // 检测小球和球拍之间的碰撞，当发生碰撞时会调用 ballHitPaddle 函数进行相应处理，使用ARCADE物理引擎的碰撞检测功能
+            game.physics.arcade.collide(ball, paddle, ballHitPaddle);
+            // 检测小球和砖块之间的碰撞，当发生碰撞时会调用 ballHitBrick 函数进行相应处理，同样使用ARCADE物理引擎
+            game.physics.arcade.collide(ball, bricks, ballHitBrick);
+            // 如果游戏处于正在进行状态（playing 为 true），则根据输入的鼠标位置（或屏幕触摸位置）来更新球拍的水平位置，
+            // 如果没有输入则将球拍位置设置为游戏世界宽度的一半（保持在中心位置）
+            if (playing) {
+                paddle.x = game.input.x || game.world.width * 0.5;
+            }
+        }
+
+        // 初始化砖块的具体函数实现，用于创建并排列游戏中的砖块
+        function initBricks() {
+            // 定义一个包含砖块相关信息的对象，如宽度、高度、行列数量、偏移量以及间距等信息
+            brickInfo = {
+                width: 50,
+                height: 20,
+                count: {
+                    col: 7,
+                    row: 4
+                },
+                offset: {
+                    top: 50,
+                    left: 60
+                },
+                padding: 10
+            }
+            // 创建一个游戏对象组，用于管理所有的砖块，方便统一操作，比如批量处理碰撞、显示隐藏等
+            bricks = game.add.group();
+            // 嵌套循环遍历砖块的行和列，创建每一个砖块对象并设置其位置、启用物理模拟、设置为不可移动等属性，最后添加到砖块组中
+            for (c = 0; c < brickInfo.count.row; c++) {
+                for (r = 0; r < brickInfo.count.col; r++) {
+                    var brickX = (r * (brickInfo.width + brickInfo.padding)) + brickInfo.offset.left;
+                    var brickY = (c * (brickInfo.height + brickInfo.padding)) + brickInfo.offset.top;
+                    newBrick = game.add.sprite(brickX, brickY, 'brick');
+                    game.physics.enable(newBrick, Phaser.Physics.ARCADE);
+                    newBrick.body.immovable = true;
+                    newBrick.anchor.set(0.5);
+                    bricks.add(newBrick);
+                }
+            }
+        }
+
+        // 当小球碰撞到砖块时执行的函数，用于处理砖块被击中后的效果，比如得分、砖块消失等
+        function ballHitBrick(ball, brick) {
+            // 创建一个针对砖块的缩放动画，从原始大小逐渐缩放到 (0,0)，即消失，动画时长为200毫秒，使用线性缓动效果（无加速或减速）
+            var killTween = game.add.tween(brick.scale);
+            killTween.to({ x: 0, y: 0 }, 200, Phaser.Easing.Linear.None);
+            // 为动画添加完成后的回调函数，当动画完成后，将砖块从游戏中移除（销毁）
+            killTween.onComplete.addOnce(function () {
+                brick.kill();
+            }, this);
+            killTween.start();
+            // 玩家得分增加10分，并更新显示得分的文本内容
+            score += 10;
+            scoreText.setText('Points: ' + score);
+            // 如果玩家得分达到所有砖块的总分（通过砖块行列数和每个砖块对应的分值计算），则弹出获胜提示框，并重新加载页面
+            if (score === brickInfo.count.row * brickInfo.count.col * 10) {
+                alert('You won the game. Congratulations!');
+                location.reload();
+            }
+        }
+
+        // 当小球离开游戏屏幕时执行的函数，用于处理玩家失去生命、重置游戏元素等情况
+        function ballLeaveScreen() {
+            // 玩家剩余生命数减1
+            lives--;
+            // 如果还有剩余生命，则更新显示剩余生命数的文本内容，显示失去生命的提示文本，重置小球和球拍的位置，
+            // 并添加点击屏幕（或鼠标点击）的事件监听器，当玩家点击后隐藏提示文本并重新给小球设置初始速度
+            if (lives) {
+                livesText.setText('Lives: ' + lives);
+                lifeLostText.visible = true;
+                ball.reset(game.world.width * 0.5, game.world.height - 25);
+                paddle.reset(game.world.width * 0.5, game.world.height - 5);
+                game.input.onDown.addOnce(function () {
+                    lifeLostText.visible = false;
+                    ball.body.velocity.set(150, -150);
+                }, this);
+            }
+            // 如果没有剩余生命了，则弹出游戏失败提示框，并重新加载页面
+            else {
+                alert('You lost, game over!');
+                location.reload();
+            }
+        }
+
+        // 当小球碰撞到球拍时执行的函数，用于处理小球碰撞球拍后的行为，比如播放小球的动画、改变小球的水平速度等
+        function ballHitPaddle(ball, paddle) {
+            // 播放小球的 'wobble' 动画，产生晃动效果
+            ball.animations.play('wobble');
+            // 根据小球和球拍的相对位置来调整小球的水平速度，实现不同位置碰撞后小球反弹速度不同的效果，
+            //这里乘以 -1 和 5 是为了调整速度的大小和方向
+            ball.body.velocity.x = -1 * 5 * (paddle.x - ball.x);
+        }
+
+        // 开始游戏的函数，点击开始按钮时会调用此函数，用于隐藏开始按钮、给小球设置初始速度、设置游戏状态为正在进行以及隐藏操作提示文本
+        function startGame() {
+            startButton.destroy();
+            ball.body.velocity.set(150, -150);
+            playing = true;
+            instruction.visible = false;
+        }
+    </script>
+</body>
+
+</html>
