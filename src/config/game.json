@@ -1,0 +1,121 @@
+{
+    "gameWidth": 800,
+    "gameHeight": 600,
+    "spriteAtlas": {
+        "key": "spriteatlas",
+        "imageFile": "spriteatlas.png",
+        "jsonFile": "spriteatlas.json"
+    },
+    "enableCheats": true,
+    "player": {
+        "startingLives": 2,
+        "brickValue": 100
+    },
+    "ball": {
+        "pixelWidth": 22,
+        "pixelHeight": 22,
+        "velocityX": 75,
+        "velocityY": -300,
+        "startPosX": 10,
+        "startPosY": 26
+    },
+    "brick": {
+        "pixelWidth": 64,
+        "pixelHeight": 32,
+        "colors": {
+            "blue": {
+                "maxLives": 1,
+                "breakable": true
+            },
+            "green": {
+                "maxLives": 2,
+                "breakable": true
+            },
+            "yellow": {
+                "maxLives": 3,
+                "breakable": true
+            },
+            "orange": {
+                "maxLives": 4,
+                "breakable": true
+            },
+            "red": {
+                "maxLives": 5,
+                "breakable": true
+            },
+            "purple": {
+                "maxLives": 6,
+                "breakable": true
+            },
+            "white": {
+                "maxLives": 100,
+                "breakable": false
+            },
+            "brown": {
+                "maxLives": 4,
+                "breakable": true
+            }
+        }
+    },
+    "powerup": {
+        "pixelWidth": 64,
+        "pixelHeight": 32, 
+        "types": {
+            "bomb": {
+                "maxLives": 1,
+                "breakable": true
+            }
+        }
+    },
+    "brickGrid": {
+        "startPosX": 16,
+        "startPosY": 100,
+        "width": 12,
+        "height": 12,
+        "pixelWidth": 768,
+        "pixelHeight": 384,
+        "tiledLayerName": "Brick Grid"
+    },
+    "paddle": {
+        "pixelWidth": 104,
+        "pixelHeight": 24
+    },
+    "data": {
+        "playerLivesKey": "PlayerLives",
+        "playerScoreKey": "PlayerScore",
+        "levelKey": "Level",
+        "levelMapKey": "LevelMap"
+    },
+    "level": {
+        "configToLevel": [
+            "level_1",
+            "level_2",
+            "level_3",
+            "level_4",
+            "level_5",
+            "level_6",
+            "level_7",
+            "level_8",
+            "level_9",
+            "level_10",
+            "level_11",
+            "level_12",
+            "level_13",
+            "level_14",
+            "level_15",
+            "level_16",
+            "level_17",
+            "level_18",
+            "level_19",
+            "level_20",
+            "level_21",
+            "level_22",
+            "level_23",
+            "level_24",
+            "level_25",
+            "level_26",
+            "level_27",
+            "level_28"
+        ]
+    }
+}
